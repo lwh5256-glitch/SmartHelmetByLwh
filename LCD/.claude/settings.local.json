@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "Read(//d/Keil_v5/Packs/Keil/**)",
+      "Read(//d/Keil_v5/ARM/PACK/Keil/**)",
+      "Bash(cp \"d:/Keil_v5/workplace/shixi/407/chuankou/chuankou-lunxun/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c\" \"d:/Keil_v5/workplace/myself/407/luoban/LCD/Drivers/STM32F4xx_HAL_Driver/Src/\")",
+      "Bash(cp \"d:/Keil_v5/workplace/shixi/407/chuankou/chuankou-lunxun/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h\" \"d:/Keil_v5/workplace/myself/407/luoban/LCD/Drivers/STM32F4xx_HAL_Driver/Inc/\")",
+      "Bash(ls -la *.uvprojx)",
+      "Read(//d/BaiduNetdiskDownload/【正点原子】探索者STM32F407开发板V3 资料盘\\(A盘\\)/3，原理图/**)",
+      "Bash(unzip -q \"（HAL库版本，适合阿波罗STM32F4开发板）扩展实验x ATK-ESP8266 WIFI模块测试实验.zip\" -d esp8266_f4_example)",
+      "Bash(\"C:\\\\Keil_v5\\\\UV4\\\\UV4.exe\" -b LCD.uvprojx -o build.log)",
+      "Bash(\"/c/Keil_v5/UV4/UV4.exe\" -b LCD.uvprojx -o build.log)",
+      "Bash(find \"d:\\\\Keil_v5\\\\workplace\\\\myself\\\\407\\\\luoban\\\\LCD\\\\资料\\\\【正点原子】WIFI模块ATK-ESP8266\\\\【正点原子】WIFI模块ATK-ESP8266资料（旧资料）\\\\2，程序源码\\\\esp8266_f4_example\" -name \"*.h\" -exec grep -l \"USART\\\\|UART\" {})",
+      "Bash(find d:Keil_v5workplacemyself407luobanLCD资料【正点原子】WIFI模块ATK-ESP8266【正点原子】WIFI模块ATK-ESP8266资料（旧资料）2，程序源码esp8266_f4_example -path */HARDWARE/* -name *.c)",
+      "Bash(ls -la d:Keil_v5workplacemyself407luobanLCD资料【正点原子】WIFI模块ATK-ESP8266【正点原子】WIFI模块ATK-ESP8266资料（旧资料）2，程序源码esp8266_f4_example/*/SYSTEM/usart/)",
+      "Read(//d/Keil_v5/workplace/myself/407/luoban/资料/【正点原子】WIFI模块ATK-ESP8266/**)",
+      "Read(//d/Keil_v5/workplace/myself/407/luoban/**)",
+      "Read(//d/Keil_v5/workplace/myself/407/**)"
+    ]
+  }
+}
