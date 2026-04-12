@@ -1,5 +1,0 @@
-固件烧录方法请参考《ATK-ESP8266模块用户手册》第2.6小节“固件烧录”。
-
-SHA256文件校验：
-factory_ATK-MW8266_V2.0.bin：66810999c0400e9e267d3a96e8cd192f06fe503861d64c1fee3030f26ac1aa91
-factory_ATK-MW8266_V3.0.bin：72f3e30e3fd2374a5c480b481efdacac767653793e1f600c1827c390e5e7ee89

@@ -3226,37 +3226,37 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
 
-       128         26          0          0          0       2359   beep.o
-        80         10          0          4          0       2759   delay.o
-       812        296         12          2       1121       9743   esp8266.o
-       484         86          0          0          0       3119   fall_detect.o
-        72          6          0          0          0       1650   filter.o
-       308         32          0          8         80       2319   fsmc.o
+       128         26          0          0          0       2347   beep.o
+        80         10          0          4          0       2751   delay.o
+       812        296         12          2       1121       9715   esp8266.o
+       484         86          0          0          0       3115   fall_detect.o
+        72          6          0          0          0       1642   filter.o
+       308         32          0          8         80       2307   fsmc.o
        324         18          0          0          0       1171   gpio.o
-       392         26          0          1          0       1850   key.o
-     12466         84      12160          4         94      23787   lcd_1.o
-      2400        694          0          8         80     711131   main.o
-      1126         34          0          0          0      10112   mpu6050.o
-       272         34          0          3        122       3408   pms7003.o
+       392         26          0          1          0       1842   key.o
+     12466         84      12160          4         94      23755   lcd_1.o
+      2400        694          0          8         80     711083   main.o
+      1126         34          0          0          0      10088   mpu6050.o
+       272         34          0          3        122       3396   pms7003.o
         64         26        392          0       1536        848   startup_stm32f407xx.o
-       144         24          0         12          0       8809   stm32f4xx_hal.o
-       198         14          0          0          0      33983   stm32f4xx_hal_cortex.o
-       182          0          0          0          0       2115   stm32f4xx_hal_dma.o
-       532         46          0          0          0       3528   stm32f4xx_hal_gpio.o
-        48          6          0          0          0        866   stm32f4xx_hal_msp.o
-      1344         72          0          0          0       5276   stm32f4xx_hal_rcc.o
+       144         24          0         12          0       8801   stm32f4xx_hal.o
+       198         14          0          0          0      33971   stm32f4xx_hal_cortex.o
+       182          0          0          0          0       2111   stm32f4xx_hal_dma.o
+       532         46          0          0          0       3516   stm32f4xx_hal_gpio.o
+        48          6          0          0          0        862   stm32f4xx_hal_msp.o
+      1344         72          0          0          0       5264   stm32f4xx_hal_rcc.o
         86          0          0          0          0       1224   stm32f4xx_hal_sram.o
-       616         44          0          0          0       6335   stm32f4xx_hal_tim.o
-       144         28          0          0          0       1356   stm32f4xx_hal_tim_ex.o
-      1642         16          0          0          0      11508   stm32f4xx_hal_uart.o
-       156         26          0          0          0       6280   stm32f4xx_it.o
-       216         12          0          0          0       2727   stm32f4xx_ll_fsmc.o
-        16          4         24          4          0       1147   system_stm32f4xx.o
-       140         20          0          0         72       1678   tim.o
-       320         38          0          0        144       2463   usart.o
+       616         44          0          0          0       6307   stm32f4xx_hal_tim.o
+       144         28          0          0          0       1352   stm32f4xx_hal_tim_ex.o
+      1642         16          0          0          0      11500   stm32f4xx_hal_uart.o
+       156         26          0          0          0       6248   stm32f4xx_it.o
+       216         12          0          0          0       2719   stm32f4xx_ll_fsmc.o
+        16          4         24          4          0       1139   system_stm32f4xx.o
+       140         20          0          0         72       1674   tim.o
+       320         38          0          0        144       2443   usart.o
 
     ----------------------------------------------------------------------
-     24736       1722      12620         48       3252     863551   Object Totals
+     24736       1722      12620         48       3252     863191   Object Totals
          0          0         32          0          0          0   (incl. Generated)
         24          0          0          2          3          0   (incl. Padding)
 
@@ -3349,8 +3349,8 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     31144       1964      12816         48       3352     852599   Grand Totals
-     31144       1964      12816         48       3352     852599   ELF Image Totals
+     31144       1964      12816         48       3352     852239   Grand Totals
+     31144       1964      12816         48       3352     852239   ELF Image Totals
      31144       1964      12816         48          0          0   ROM Totals
 
 ==============================================================================
