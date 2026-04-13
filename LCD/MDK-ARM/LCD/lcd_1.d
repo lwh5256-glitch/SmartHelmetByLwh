@@ -1,5 +1,4 @@
 lcd\lcd_1.o: ..\Drivers\HARDWARE\LCD\lcd.c
-lcd\lcd_1.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 lcd\lcd_1.o: ..\Drivers\HARDWARE\LCD\lcd.h
 lcd\lcd_1.o: ../Core/Inc/main.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
@@ -28,12 +27,16 @@ lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
-lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_sram.h
-lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_fsmc.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
+lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 lcd\lcd_1.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+lcd\lcd_1.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 lcd\lcd_1.o: ..\Drivers\HARDWARE\LCD\lcdfont.h
-lcd\lcd_1.o: ..\Drivers\HARDWARE\LCD\lcd_ex.c
+lcd\lcd_1.o: ../Drivers/SYSTEM/delay/delay.h
+lcd\lcd_1.o: ../Drivers/SYSTEM/sys/sys.h
+lcd\lcd_1.o: ../Drivers/CMSIS/Include/core_cm4.h
+lcd\lcd_1.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+lcd\lcd_1.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h

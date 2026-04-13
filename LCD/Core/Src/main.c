@@ -21,7 +21,6 @@
 #include "main.h"
 #include "tim.h"
 #include "gpio.h"
-#include "fsmc.h"
 #include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -103,7 +102,6 @@ int main(void)
   /* USER CODE END SysInit */
 
   MX_GPIO_Init();
-  MX_FSMC_Init();
   MX_TIM5_Init();
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();  /* ESP8266使用USART3 */
