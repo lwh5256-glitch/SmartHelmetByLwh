@@ -58,6 +58,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LIGHT_SENSOR_Pin GPIO_PIN_0
+#define LIGHT_SENSOR_GPIO_Port GPIOC
+#define FILL_LIGHT_Pin GPIO_PIN_1
+#define FILL_LIGHT_GPIO_Port GPIOC
 #define BUZZER_Pin GPIO_PIN_8
 #define BUZZER_GPIO_Port GPIOF
 #define LED1_Pin GPIO_PIN_9

@@ -1,10 +1,10 @@
-/**
+﻿/**
  ****************************************************************************************************
  * @file        key.c
- * @author      陆文豪
+ * @author      闄嗘枃璞?
  * @version     V1.0
  * @date        2026-03-23
- * @brief       按键驱动代码
+ * @brief       鎸夐敭椹卞姩浠ｇ爜
  ****************************************************************************************************
  */
 
@@ -12,31 +12,31 @@
 #include "delay.h"
 
 /**
- * @brief       初始化按键
- * @param       无
- * @retval      无
+ * @brief       鍒濆鍖栨寜閿?
+ * @param       鏃?
+ * @retval      鏃?
  */
 void key_init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    /* 使能时钟 */
+    /* 浣胯兘鏃堕挓 */
     KEY_UP_GPIO_CLK_ENABLE();
     KEY0_GPIO_CLK_ENABLE();
     KEY1_GPIO_CLK_ENABLE();
     KEY2_GPIO_CLK_ENABLE();
 
-    /* 配置KEY_UP (PA0) - 按下为高电平 */
+    /* 閰嶇疆KEY_UP (PA0) - 鎸変笅涓洪珮鐢靛钩 */
     GPIO_InitStruct.Pin = KEY_UP_GPIO_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  /* 下拉 */
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  /* 涓嬫媺 */
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(KEY_UP_GPIO_PORT, &GPIO_InitStruct);
 
-    /* 配置KEY0/KEY1/KEY2 (PE4/PE3/PE2) - 按下为低电平 */
+    /* 閰嶇疆KEY0/KEY1/KEY2 (PE4/PE3/PE2) - 鎸変笅涓轰綆鐢靛钩 */
     GPIO_InitStruct.Pin = KEY0_GPIO_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;  /* 上拉 */
+    GPIO_InitStruct.Pull = GPIO_PULLUP;  /* 涓婃媺 */
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(KEY0_GPIO_PORT, &GPIO_InitStruct);
 
@@ -48,69 +48,48 @@ void key_init(void)
 }
 
 /**
- * @brief       按键扫描
- * @param       mode: 0-不支持连续按, 1-支持连续按
- * @retval      按键值: KEY_NONE, KEY_UP_PRESS, KEY0_PRESS, KEY1_PRESS, KEY2_PRESS
+ * @brief       鎸夐敭鎵弿
+ * @param       mode: 0-涓嶆敮鎸佽繛缁寜, 1-鏀寔杩炵画鎸?
+ * @retval      鎸夐敭鍊? KEY_NONE, KEY_UP_PRESS, KEY0_PRESS, KEY1_PRESS, KEY2_PRESS
  */
 uint8_t key_scan(uint8_t mode)
 {
-    static uint8_t key_state = 0;  /* 按键状态: 0-未按下, 1-已按下 */
+    static GPIO_PinState prev_key_up = GPIO_PIN_RESET;
+    static GPIO_PinState prev_key0 = GPIO_PIN_SET;
     uint8_t key_val = KEY_NONE;
+    GPIO_PinState key_up;
+    GPIO_PinState key0;
 
     if(mode == 1)
     {
-        key_state = 0;  /* 支持连续按,每次都检测 */
+        prev_key_up = KEY_UP_READ();
+        prev_key0 = KEY0_READ();
     }
 
-    /* 检测按键按下 */
-    if(key_state == 0)
+    key_up = KEY_UP_READ();
+    key0 = KEY0_READ();
+
+    if(prev_key_up == GPIO_PIN_RESET && key_up == GPIO_PIN_SET)
     {
-        if(KEY_UP_READ() == GPIO_PIN_SET)  /* KEY_UP按下(高电平) */
+        delay_ms(10);
+        if(KEY_UP_READ() == GPIO_PIN_SET)
         {
-            delay_ms(10);  /* 消抖 */
-            if(KEY_UP_READ() == GPIO_PIN_SET)
-            {
-                key_state = 1;
-                key_val = KEY_UP_PRESS;
-            }
+            key_val = KEY_UP_PRESS;
+            key_up = KEY_UP_READ();
         }
-        else if(KEY0_READ() == GPIO_PIN_RESET)  /* KEY0按下(低电平) */
+    }
+    else if(prev_key0 == GPIO_PIN_SET && key0 == GPIO_PIN_RESET)
+    {
+        delay_ms(10);
+        if(KEY0_READ() == GPIO_PIN_RESET)
         {
-            delay_ms(10);
-            if(KEY0_READ() == GPIO_PIN_RESET)
-            {
-                key_state = 1;
-                key_val = KEY0_PRESS;
-            }
-        }
-        else if(KEY1_READ() == GPIO_PIN_RESET)  /* KEY1按下(低电平) */
-        {
-            delay_ms(10);
-            if(KEY1_READ() == GPIO_PIN_RESET)
-            {
-                key_state = 1;
-                key_val = KEY1_PRESS;
-            }
-        }
-        else if(KEY2_READ() == GPIO_PIN_RESET)  /* KEY2按下(低电平) */
-        {
-            delay_ms(10);
-            if(KEY2_READ() == GPIO_PIN_RESET)
-            {
-                key_state = 1;
-                key_val = KEY2_PRESS;
-            }
+            key_val = KEY0_PRESS;
+            key0 = KEY0_READ();
         }
     }
 
-    /* 检测按键释放 */
-    if(KEY_UP_READ() == GPIO_PIN_RESET &&
-       KEY0_READ() == GPIO_PIN_SET &&
-       KEY1_READ() == GPIO_PIN_SET &&
-       KEY2_READ() == GPIO_PIN_SET)
-    {
-        key_state = 0;  /* 所有按键都释放 */
-    }
+    prev_key_up = key_up;
+    prev_key0 = key0;
 
     return key_val;
 }
