@@ -11,30 +11,30 @@
 
 
 /**
- * @brief       澶浣DHT11
- * @param       data: 瑕ョ版
- * @retval      
+ * @brief       发送 DHT11 起始信号
+ * @param       无
+ * @retval      无
  */
 static void dht11_reset(void)
 {
-    DHT11_DQ_OUT(0);    /* 浣DQ */
-    delay_ms(20);       /* 浣冲18ms */
+    DHT11_DQ_OUT(0);    /* 主机拉低数据线 */
+    delay_ms(20);       /* 保持至少 18 ms */
     DHT11_DQ_OUT(1);    /* DQ=1 */
-    delay_us(30);       /* 涓绘烘楂20~40us */
+    delay_us(30);       /* 主机释放总线 20~40 us */
 }
 
 /**
- * @brief       绛寰DHT11搴
- * @param       
- * @retval      0, DHT11姝ｅ父
- *              1, DHT11寮甯/涓瀛
+ * @brief       检查 DHT11 响应信号
+ * @param       无
+ * @retval      0: DHT11 正常
+ *              1: DHT11 无响应或超时
  */
 uint8_t dht11_check(void)
 {
     uint8_t retry = 0;
     uint8_t rval = 0;
 
-    while (DHT11_DQ_IN && retry < 100)  /* DHT11浼浣40~80us */
+    while (DHT11_DQ_IN && retry < 100)  /* 等待 DHT11 拉低，典型 40~80 us */
     {
         retry++;
         delay_us(1);
@@ -48,7 +48,7 @@ uint8_t dht11_check(void)
     {
         retry = 0;
 
-        while (!DHT11_DQ_IN && retry < 100) /* DHT11浣浼娆℃楂40~80us */
+        while (!DHT11_DQ_IN && retry < 100) /* 等待 DHT11 拉高，典型 40~80 us */
         {
             retry++;
             delay_us(1);
@@ -60,15 +60,15 @@ uint8_t dht11_check(void)
 }
 
 /**
- * @brief       浠DHT11璇诲涓涓浣
- * @param       
- * @retval      璇诲扮浣: 0 / 1
+ * @brief       读取 DHT11 的 1 bit 数据
+ * @param       无
+ * @retval      读取到的位值: 0 / 1
  */
 uint8_t dht11_read_bit(void)
 {
     uint8_t retry = 0;
 
-    while (DHT11_DQ_IN && retry < 100)  /* 绛寰涓轰靛钩 */
+    while (DHT11_DQ_IN && retry < 100)  /* 等待数据线进入低电平 */
     {
         retry++;
         delay_us(1);
@@ -76,15 +76,15 @@ uint8_t dht11_read_bit(void)
 
     retry = 0;
 
-    while (!DHT11_DQ_IN && retry < 100) /* 绛寰楂靛钩 */
+    while (!DHT11_DQ_IN && retry < 100) /* 等待数据线进入高电平 */
     {
         retry++;
         delay_us(1);
     }
 
-    delay_us(40);       /* 绛寰40us */
+    delay_us(40);       /* 延时 40 us 后判定当前位值 */
 
-    if (DHT11_DQ_IN)    /* 规寮舵杩 bit */
+    if (DHT11_DQ_IN)    /* 高电平持续更久表示当前 bit 为 1 */
     {
         return 1;
     }
@@ -95,29 +95,29 @@ uint8_t dht11_read_bit(void)
 }
 
 /**
- * @brief       浠DHT11璇诲涓涓瀛
- * @param       
- * @retval      璇诲扮版
+ * @brief       读取 DHT11 的 1 字节数据
+ * @param       无
+ * @retval      读取到的字节
  */
 static uint8_t dht11_read_byte(void)
 {
     uint8_t i, data = 0;
 
-    for (i = 0; i < 8; i++)         /* 寰璇诲8浣版 */
+    for (i = 0; i < 8; i++)         /* 逐位读取 8 bit */
     {
-        data <<= 1;                 /* 楂浣版杈, 宸绉讳浣 */
-        data |= dht11_read_bit();   /* 璇诲1bit版 */
+        data <<= 1;                 /* 先左移，为新位腾出位置 */
+        data |= dht11_read_bit();   /* 读取并拼入当前 bit */
     }
 
     return data;
 }
 
 /**
- * @brief       浠DHT11璇诲涓娆℃版
- * @param       temp: 娓╁害(:0~50掳)
- * @param       humi: 婀垮害(:20%~90%)
- * @retval      0, 姝ｅ父.
- *              1, 澶辫触
+ * @brief       读取一帧温湿度数据
+ * @param       temp: 温度输出，范围约 0~50 摄氏度
+ * @param       humi: 湿度输出，范围约 20%~90%
+ * @retval      0: 读取成功
+ *              1: 读取失败
  */
 uint8_t dht11_read_data(uint8_t *temp, uint8_t *humi)
 {
@@ -127,7 +127,7 @@ uint8_t dht11_read_data(uint8_t *temp, uint8_t *humi)
 
     if (dht11_check() == 0)
     {
-        for (i = 0; i < 5; i++)     /* 璇诲40浣版 */
+        for (i = 0; i < 5; i++)     /* 读取 5 字节，共 40 bit */
         {
             buf[i] = dht11_read_byte();
         }
@@ -147,23 +147,23 @@ uint8_t dht11_read_data(uint8_t *temp, uint8_t *humi)
 }
 
 /**
- * @brief       濮DHT11IO DQ 舵娴DHT11瀛
- * @param       
- * @retval      0, 姝ｅ父
- *              1, 涓瀛/涓姝ｅ父
+ * @brief       初始化 DHT11 数据引脚并检测设备
+ * @param       无
+ * @retval      0: 初始化成功
+ *              1: 设备不存在或通信异常
  */
 uint8_t dht11_init(void)
 {
     GPIO_InitTypeDef gpio_init_struct;
 
-    DHT11_DQ_GPIO_CLK_ENABLE();     /* 寮DQ寮堕 */
+    DHT11_DQ_GPIO_CLK_ENABLE();     /* 使能 DHT11 数据引脚时钟 */
 
     gpio_init_struct.Pin = DHT11_DQ_GPIO_PIN;
-    gpio_init_struct.Mode = GPIO_MODE_OUTPUT_OD;            /* 寮婕杈 */
-    gpio_init_struct.Pull = GPIO_PULLUP;                    /* 涓 */
-    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH;          /* 楂 */
-    HAL_GPIO_Init(DHT11_DQ_GPIO_PORT, &gpio_init_struct);   /* 濮DHT11_DQ寮 */
-    /* DHT11_DQ寮妯″璁剧疆,寮婕杈,涓, 杩峰氨涓ㄥ璁剧疆IO瑰浜, 寮婕杈虹跺(=1), 涔浠ヨ诲澶ㄤ俊风楂浣靛钩 */
+    gpio_init_struct.Mode = GPIO_MODE_OUTPUT_OD;            /* 开漏输出 */
+    gpio_init_struct.Pull = GPIO_PULLUP;                    /* 上拉 */
+    gpio_init_struct.Speed = GPIO_SPEED_FREQ_HIGH;          /* 高速 */
+    HAL_GPIO_Init(DHT11_DQ_GPIO_PORT, &gpio_init_struct);   /* 初始化 DHT11 数据引脚 */
+    /* DHT11 使用单总线，初始化为开漏上拉输出，空闲时保持高电平。 */
 
     dht11_reset();
     return dht11_check();

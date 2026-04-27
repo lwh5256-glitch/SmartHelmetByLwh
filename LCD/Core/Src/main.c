@@ -36,26 +36,46 @@
 #include "key.h"
 #include "esp8266.h"
 #include "pms7003.h"
+#include "ds18b20.h"
 #include "stdio.h"                                      
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 float pitch,roll,yaw;
 int int_part;
-uint8_t display_buf[20];
+uint8_t display_buf[32];
 fall_detector_t fall_detector;
 uint32_t system_time_ms = 0;
 uint8_t beep_test_mode = 0;  /* 保留报警屏蔽标志，当前不再由按键切换 */
-uint8_t wifi_config_mode = 0;  /* WiFi閰嶇綉妯″紡: 0-鍏抽棴, 1-SmartConfig */
-uint8_t wifi_connected = 0;    /* WiFi杩炴帴鐘舵€?*/
-uint8_t atkcld_connected = 0;  /* 鍘熷瓙浜戣繛鎺ョ姸鎬?*/
+uint8_t wifi_config_mode = 0;  /* WiFi 配网模式: 0-关闭, 1-SmartConfig */
+uint8_t wifi_connected = 0;    /* WiFi 连接状态 */
+uint8_t atkcld_connected = 0;  /* 原子云连接状态 */
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define WIFI_ALARM_MUTE_MS             15000U
 #define LIGHT_SENSOR_DARK_STATE        GPIO_PIN_SET
+#define DS18B20_CONVERT_MS             750U
+#define DS18B20_REFRESH_MS             2000U
+
+#define LCD_Y_TITLE                    5
+#define LCD_Y_INIT                     35
+#define LCD_Y_STATUS_TITLE             60
+#define LCD_Y_STATUS_LINE1             80
+#define LCD_Y_STATUS_LINE2             100
+#define LCD_Y_AIR_TITLE                125
+#define LCD_Y_AIR_PM                   145
+#define LCD_Y_TEMP_BODY                165
+#define LCD_Y_TEMP_ENV                 185
+#define LCD_Y_MOTION_TITLE             205
+#define LCD_Y_MOTION_X                 225
+#define LCD_Y_MOTION_Y                 245
+#define LCD_Y_MOTION_Z                 265
+#define LCD_Y_NET                      295
+#define LCD_Y_LIGHT                    315
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,6 +97,23 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void format_temp_x10(char *buf, const char *label, int16_t temp_x10, uint8_t valid)
+{
+    uint16_t abs_temp;
+
+    if (!valid)
+    {
+        sprintf(buf, "%s:--.-C       ", label);
+        return;
+    }
+
+    abs_temp = (temp_x10 < 0) ? (uint16_t)(-temp_x10) : (uint16_t)temp_x10;
+    sprintf(buf, "%s:%c%3d.%1dC    ",
+            label,
+            (temp_x10 < 0) ? '-' : ' ',
+            abs_temp / 10,
+            abs_temp % 10);
+}
 
 /* USER CODE END 0 */
 
@@ -106,11 +143,9 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM5_Init();
   MX_USART1_UART_Init();
-  MX_USART3_UART_Init();  /* ESP8266浣跨敤USART3 */
+  MX_USART3_UART_Init();  /* ESP8266 使用 USART3 */
   /* USER CODE BEGIN 2 */
     uint8_t t = 0;
-    uint8_t temperature;
-    uint8_t humidity;
     uint8_t mpu_status = 0;
     short accel_x, accel_y, accel_z;
     short gyro_x, gyro_y, gyro_z;
@@ -122,6 +157,13 @@ int main(void)
     uint8_t light_is_dark = 0;
     uint8_t fill_light_auto = 1;
     uint8_t fill_light_on = 0;
+    int16_t temp_body_x10 = 0;
+    int16_t temp_env_x10 = 0;
+    uint8_t temp_body_valid = 0;
+    uint8_t temp_env_valid = 0;
+    uint8_t temp_convert_pending = 0;
+    uint32_t temp_convert_start_ms = 0;
+    uint32_t temp_refresh_timer = 0;
     uint32_t atkcld_publish_timer = 0;
     uint32_t wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
 
@@ -129,92 +171,97 @@ int main(void)
     lcd_init();
     beep_init();
     key_init();
+    DS18B20_Init();
+    DS18B20_StartConvertAll();
+    temp_convert_pending = 1;
+    temp_convert_start_ms = HAL_GetTick();
 
-    /* PMS7003鍒濆鍖?*/
+    /* 初始化 PMS7003 */
     PMS7003_Init();
 
-    /* 鏍囬 - 浣跨敤24鍙峰瓧浣?*/
-    lcd_show_string(30, 5, 200, 24, 24, "Smart Helmet", RED);
+    /* 标题，使用 24 号字体 */
+    lcd_show_string(30, LCD_Y_TITLE, 200, 24, 24, "Smart Helmet", RED);
 
-    /* MPU6050鍒濆鍖?*/
-    lcd_show_string(10, 35, 110, 16, 16, "MPU:Init...", BLUE);
+    /* 初始化 MPU6050 */
+    lcd_show_string(10, LCD_Y_INIT, 110, 16, 16, "MPU:Init...", BLUE);
     mpu_status = MPU_Init();
     if(mpu_status == 0)
     {
-        lcd_show_string(10, 35, 110, 16, 16, "MPU:OK    ", BLUE);
+        lcd_show_string(10, LCD_Y_INIT, 110, 16, 16, "MPU:OK    ", BLUE);
     }
     else
     {
-        lcd_show_string(10, 35, 110, 16, 16, "MPU:Error ", RED);
+        lcd_show_string(10, LCD_Y_INIT, 110, 16, 16, "MPU:Error ", RED);
         delay_ms(2000);
     }
 
-    /* 鍒濆鍖栨憯鍊掓娴嬪櫒 */
+    /* 初始化摔倒检测器 */
     fall_detect_init(&fall_detector);
 
-    /* 鍒嗙粍1: 绯荤粺鐘舵€?*/
-    lcd_show_string(10, 60, 220, 16, 16, "== Status ==", BLUE);
-    lcd_show_string(10, 80, 100, 16, 16, "System:", BLACK);
-    lcd_show_string(70, 80, 150, 16, 16, "Normal    ", BLUE);
-    lcd_show_string(10, 100, 100, 16, 16, "State:", BLACK);
+    /* 分组 1: 系统状态 */
+    lcd_show_string(10, LCD_Y_STATUS_TITLE, 220, 16, 16, "== Status ==", BLUE);
+    lcd_show_string(10, LCD_Y_STATUS_LINE1, 100, 16, 16, "System:", BLACK);
+    lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "Normal    ", BLUE);
+    lcd_show_string(10, LCD_Y_STATUS_LINE2, 100, 16, 16, "State:", BLACK);
 
-    /* 鍒嗙粍2: 绌烘皵璐ㄩ噺 */
-    lcd_show_string(10, 125, 220, 16, 16, "== Air Quality ==", BLUE);
-    lcd_show_string(10, 145, 220, 16, 16, "PM2.5:            ", BLACK);
-    lcd_show_string(10, 165, 220, 16, 16, "Dust:             ", BLACK);
+    /* 分组 2: 空气质量和温度 */
+    lcd_show_string(10, LCD_Y_AIR_TITLE, 220, 16, 16, "== Air Quality ==", BLUE);
+    lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, "PM2.5:            ", BLACK);
+    lcd_show_string(10, LCD_Y_TEMP_BODY, 220, 16, 16, "BodyT:--.-C       ", BLACK);
+    lcd_show_string(10, LCD_Y_TEMP_ENV, 220, 16, 16, "EnvT:--.-C        ", BLACK);
 
-    /* 鍒嗙粍3: 鍔犻€熷害 */
-    lcd_show_string(10, 190, 220, 16, 16, "== Acceleration ==", BLUE);
-    lcd_show_string(10, 210, 100, 16, 16, "Accel X:", BLACK);
-    lcd_show_string(10, 230, 100, 16, 16, "Accel Y:", BLACK);
-    lcd_show_string(10, 250, 100, 16, 16, "Accel Z:", BLACK);
+    /* 分组 3: 加速度 */
+    lcd_show_string(10, LCD_Y_MOTION_TITLE, 220, 16, 16, "== Acceleration ==", BLUE);
+    lcd_show_string(10, LCD_Y_MOTION_X, 100, 16, 16, "Accel X:", BLACK);
+    lcd_show_string(10, LCD_Y_MOTION_Y, 100, 16, 16, "Accel Y:", BLACK);
+    lcd_show_string(10, LCD_Y_MOTION_Z, 100, 16, 16, "Accel Z:", BLACK);
 
-    /* 鍒嗙粍4: 缃戠粶 */
-    lcd_show_string(10, 275, 220, 16, 16, "== Network ==", BLUE);
-    lcd_show_string(10, 295, 110, 16, 16, "WiFi:      ", BLACK);
-    lcd_show_string(10, 315, 220, 16, 16, "MODE:AUTO     ", BLUE);
-    lcd_show_string(130, 315, 110, 16, 16, "LAMP:OFF", BLACK);
+    /* 分组 4: 网络与补光 */
+    lcd_show_string(10, LCD_Y_NET, 110, 16, 16, "WiFi:      ", BLACK);
+    lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:      ", BLACK);
+    lcd_show_string(10, LCD_Y_LIGHT, 120, 16, 16, "MODE:AUTO     ", BLUE);
+    lcd_show_string(130, LCD_Y_LIGHT, 110, 16, 16, "LAMP:OFF", BLACK);
 
-    /* ESP8266鍒濆鍖?*/
-    lcd_show_string(130, 35, 110, 16, 16, "WiFi:Init...", BLUE);
+    /* 初始化 ESP8266 */
+    lcd_show_string(130, LCD_Y_INIT, 110, 16, 16, "WiFi:Init...", BLUE);
     esp8266_init();
 
     if(esp8266_check() == 0)
     {
-        lcd_show_string(130, 35, 110, 16, 16, "WiFi:OK    ", BLUE);
+        lcd_show_string(130, LCD_Y_INIT, 110, 16, 16, "WiFi:OK    ", BLUE);
         wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
 
-        /* 涓婄數鑷姩灏濊瘯鑱旂綉 */
-        lcd_show_string(10, 295, 220, 16, 16, "WiFi:Connect..    ", BLUE);
+        /* 上电后自动尝试连接 WiFi */
+        lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Connect ", BLUE);
         if(esp8266_auto_connect() == 0)
         {
             wifi_connected = 1;
-            lcd_show_string(10, 295, 220, 16, 16, "WiFi:Connected    ", GREEN);
+            lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:OK      ", GREEN);
             wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
 
-            /* 杩炴帴鍘熷瓙浜?*/
-            lcd_show_string(130, 295, 110, 16, 16, "Cld:Conn..", BLUE);
+            /* 连接原子云 */
+            lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:Conn..", BLUE);
             if(esp8266_connect_atkcld(ATKCLD_DEVICE_ID, ATKCLD_DEVICE_PWD) == 0)
             {
                 atkcld_connected = 1;
-                lcd_show_string(130, 295, 110, 16, 16, "Cld:OK    ", GREEN);
+                lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:OK    ", GREEN);
                 wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
             }
             else
             {
-                lcd_show_string(130, 295, 110, 16, 16, "Cld:Error ", RED);
+                lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:Error ", RED);
                 wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
             }
         }
         else
         {
-            lcd_show_string(10, 295, 220, 16, 16, "WiFi:Need Config  ", BLUE);
+            lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Config  ", BLUE);
             wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
         }
     }
     else
     {
-        lcd_show_string(130, 35, 110, 16, 16, "WiFi:Error ", RED);
+        lcd_show_string(130, LCD_Y_INIT, 110, 16, 16, "WiFi:Error ", RED);
         wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
     }
 
@@ -225,38 +272,38 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-        /* 鎸夐敭鎵弿 */
+        /* 按键扫描 */
         key_val = key_scan(0);
         HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
 
         if(key_val == KEY_UP_PRESS)
         {
-            /* PA0鎸変笅: 鐘舵€佸垏鎹?- 鍚姩SmartConfig / 鍋滄閰嶇綉鎴栨柇寮€WiFi */
+            /* PA0 按下: 启动 SmartConfig，或停止配网 / 断开 WiFi */
             if(!wifi_config_mode && !wifi_connected)
             {
-                /* 褰撳墠鏈厤缃戜笖鏈繛鎺?-> 鍚姩SmartConfig */
+                /* 当前未配网且未连接，启动 SmartConfig */
                 wifi_config_mode = 1;
-                lcd_show_string(10, 295, 220, 16, 16, "WiFi:Config...    ", BLUE);
+                lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Config  ", BLUE);
                 if(esp8266_start_smartconfig() == 0)
                 {
-                    lcd_show_string(10, 295, 220, 16, 16, "WiFi:Waiting...   ", BLUE);
+                    lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Waiting ", BLUE);
                     wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                 }
                 else
                 {
-                    lcd_show_string(10, 295, 220, 16, 16, "WiFi:Cfg Error    ", RED);
+                    lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:CfgErr  ", RED);
                     wifi_config_mode = 0;
                     wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                 }
             }
             else
             {
-                /* 褰撳墠姝ｅ湪閰嶇綉鎴栧凡杩炴帴 -> 鍋滄/鏂紑 */
+                /* 当前正在配网或已连接，执行停止 / 断开 */
                 if(wifi_config_mode)
                 {
                     esp8266_stop_smartconfig();
                     wifi_config_mode = 0;
-                    lcd_show_string(10, 295, 220, 16, 16, "WiFi:Stopped      ", BLACK);
+                    lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Stopped ", BLACK);
                     wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                 }
                 else if(wifi_connected)
@@ -268,8 +315,8 @@ int main(void)
                     }
                     esp8266_disconnect_ap();
                     wifi_connected = 0;
-                    lcd_show_string(10, 295, 220, 16, 16, "WiFi:Disconnected ", BLACK);
-                    lcd_show_string(130, 295, 110, 16, 16, "Cld:      ", BLACK);
+                    lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:Off     ", BLACK);
+                    lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:      ", BLACK);
                     wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                 }
             }
@@ -283,28 +330,49 @@ int main(void)
                 /* 切换到手动模式时，翻转当前灯状态 */
                 fill_light_on = !fill_light_on;
                 HAL_GPIO_WritePin(FILL_LIGHT_GPIO_Port, FILL_LIGHT_Pin, fill_light_on ? GPIO_PIN_SET : GPIO_PIN_RESET);
-                lcd_show_string(10, 315, 220, 16, 16, "MODE:MAN      ", BLACK);
-                lcd_show_string(130, 315, 110, 16, 16, fill_light_on ? "LAMP:ON " : "LAMP:OFF", fill_light_on ? BLUE : BLACK);
+                lcd_show_string(10, LCD_Y_LIGHT, 120, 16, 16, "MODE:MAN      ", BLACK);
+                lcd_show_string(130, LCD_Y_LIGHT, 110, 16, 16, fill_light_on ? "LAMP:ON " : "LAMP:OFF", fill_light_on ? BLUE : BLACK);
             }
             else
             {
                 /* 切换回自动模式 */
-                lcd_show_string(10, 315, 220, 16, 16, "MODE:AUTO     ", BLUE);
+                lcd_show_string(10, LCD_Y_LIGHT, 120, 16, 16, "MODE:AUTO     ", BLUE);
             }
         }
 
-        if (t % 5 == 0)    /* 姣?0ms璇诲彇涓€娆?*/
+        if (t % 5 == 0)    /* 每 50 ms 处理一次周期任务 */
         {
             light_is_dark = (HAL_GPIO_ReadPin(LIGHT_SENSOR_GPIO_Port, LIGHT_SENSOR_Pin) == LIGHT_SENSOR_DARK_STATE);
             if(fill_light_auto)
             {
                 fill_light_on = light_is_dark ? 1 : 0;
                 HAL_GPIO_WritePin(FILL_LIGHT_GPIO_Port, FILL_LIGHT_Pin, fill_light_on ? GPIO_PIN_SET : GPIO_PIN_RESET);
-                lcd_show_string(10, 315, 220, 16, 16, "MODE:AUTO     ", BLUE);
-                lcd_show_string(130, 315, 110, 16, 16, fill_light_on ? "LAMP:ON " : "LAMP:OFF", fill_light_on ? BLUE : BLACK);
+                lcd_show_string(10, LCD_Y_LIGHT, 120, 16, 16, "MODE:AUTO     ", BLUE);
+                lcd_show_string(130, LCD_Y_LIGHT, 110, 16, 16, fill_light_on ? "LAMP:ON " : "LAMP:OFF", fill_light_on ? BLUE : BLACK);
             }
 
-            /* 妫€鏌martConfig閰嶇綉鐘舵€?*/
+            if(temp_convert_pending && (HAL_GetTick() - temp_convert_start_ms >= DS18B20_CONVERT_MS))
+            {
+                temp_body_valid = (DS18B20_ReadTempX10(DS18B20_CH_BODY, &temp_body_x10) == 0);
+                temp_env_valid = (DS18B20_ReadTempX10(DS18B20_CH_ENV, &temp_env_x10) == 0);
+
+                format_temp_x10((char *)display_buf, "BodyT", temp_body_x10, temp_body_valid);
+                lcd_show_string(10, LCD_Y_TEMP_BODY, 220, 16, 16, (char *)display_buf, temp_body_valid ? BLACK : RED);
+                format_temp_x10((char *)display_buf, "EnvT", temp_env_x10, temp_env_valid);
+                lcd_show_string(10, LCD_Y_TEMP_ENV, 220, 16, 16, (char *)display_buf, temp_env_valid ? BLACK : RED);
+
+                temp_convert_pending = 0;
+                temp_refresh_timer = HAL_GetTick();
+            }
+
+            if(!temp_convert_pending && (HAL_GetTick() - temp_refresh_timer >= DS18B20_REFRESH_MS))
+            {
+                DS18B20_StartConvertAll();
+                temp_convert_pending = 1;
+                temp_convert_start_ms = HAL_GetTick();
+            }
+
+            /* 检查 SmartConfig 配网状态 */
             if(wifi_config_mode)
             {
                 if(strstr((char *)esp8266_rx_buf, "WIFI GOT IP") != NULL)
@@ -312,49 +380,44 @@ int main(void)
                     wifi_config_mode = 0;
                     wifi_connected = 1;
                     esp8266_stop_smartconfig();
-                    lcd_show_string(10, 295, 220, 16, 16, "WiFi:Connected    ", GREEN);
+                    lcd_show_string(10, LCD_Y_NET, 120, 16, 16, "WiFi:OK      ", GREEN);
                     wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
 
-                    /* 杩炴帴鍘熷瓙浜?*/
-                    lcd_show_string(130, 295, 110, 16, 16, "Cld:Conn..", BLUE);
+                    /* 连接原子云 */
+                    lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:Conn..", BLUE);
                     if(esp8266_connect_atkcld(ATKCLD_DEVICE_ID, ATKCLD_DEVICE_PWD) == 0)
                     {
                         atkcld_connected = 1;
-                        lcd_show_string(130, 295, 110, 16, 16, "Cld:OK    ", GREEN);
+                        lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:OK    ", GREEN);
                         wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                     }
                     else
                     {
-                        lcd_show_string(130, 295, 110, 16, 16, "Cld:Error ", RED);
+                        lcd_show_string(130, LCD_Y_NET, 110, 16, 16, "Cld:Error ", RED);
                         wifi_mute_until_ms = HAL_GetTick() + WIFI_ALARM_MUTE_MS;
                     }
                 }
             }
 
-            /* 璇诲彇PMS7003鏁版嵁 */
+            /* 读取 PMS7003 数据 */
             pms_data = PMS7003_GetData();
             if(pms_data->valid)
             {
-                /* 鏄剧ずPM2.5 - 甯︽姤璀︽彁绀?*/
+                /* 显示 PM2.5，并在超阈值时给出告警提示 */
                 if(pms_data->pm2_5_cf1 > 1000)
                 {
                     sprintf((char *)display_buf,"PM2.5:%4d ALARM!", pms_data->pm2_5_cf1);
-                    lcd_show_string(10, 145, 220, 16, 16, (char *)display_buf, RED);
+                    lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, (char *)display_buf, RED);
                     pm25_alarm = 1;
                 }
                 else
                 {
                     sprintf((char *)display_buf,"PM2.5:%4d ug/m3 ", pms_data->pm2_5_cf1);
-                    lcd_show_string(10, 145, 220, 16, 16, (char *)display_buf, BLACK);
+                    lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, (char *)display_buf, BLACK);
                     pm25_alarm = 0;
                 }
 
-                /* 杩戜技绮夊皹娴撳害鎹㈢畻: dust(mg/m3) = pm2.5(ug/m3) / 1000.0 */
-                float dust_mg = pms_data->pm2_5_cf1 / 1000.0f;
-                sprintf((char *)display_buf,"Dust:%.3f mg/m3  ", dust_mg);
-                lcd_show_string(10, 165, 220, 16, 16, (char *)display_buf, BLACK);
-
-                /* 鍘熷瓙浜戝畾鏈熶笂鎶M2.5鏁版嵁 (姣?绉? */
+                /* 定时向原子云上报 PM2.5 数据，每 5 秒一次 */
                 if(atkcld_connected && (system_time_ms - atkcld_publish_timer >= 5000))
                 {
                     atkcld_publish_timer = system_time_ms;
@@ -364,7 +427,7 @@ int main(void)
                 }
             }
 
-            /* 璇诲彇MPU6050鍔犻€熷害鏁版嵁 */
+            /* 读取 MPU6050 加速度数据 */
             if(mpu_status == 0)
             {
                 if(MPU_Get_Accelerometer(&accel_x, &accel_y, &accel_z) == 0)
@@ -372,18 +435,18 @@ int main(void)
                     fall_detected = fall_detect_update(&fall_detector, accel_x, accel_y, accel_z, system_time_ms);
 
                     sprintf((char *)display_buf,"Accel X:%6d", accel_x);
-                    lcd_show_string(10, 210, 200, 16, 16, (char *)display_buf, BLACK);
+                    lcd_show_string(10, LCD_Y_MOTION_X, 200, 16, 16, (char *)display_buf, BLACK);
                     sprintf((char *)display_buf,"Accel Y:%6d", accel_y);
-                    lcd_show_string(10, 230, 200, 16, 16, (char *)display_buf, BLACK);
+                    lcd_show_string(10, LCD_Y_MOTION_Y, 200, 16, 16, (char *)display_buf, BLACK);
                     sprintf((char *)display_buf,"Accel Z:%6d", accel_z);
-                    lcd_show_string(10, 250, 200, 16, 16, (char *)display_buf, BLACK);
+                    lcd_show_string(10, LCD_Y_MOTION_Z, 200, 16, 16, (char *)display_buf, BLACK);
 
                     sprintf((char *)display_buf,"%-10s", fall_detect_get_state_string(fall_detector.state));
-                    lcd_show_string(70, 100, 150, 16, 16, (char *)display_buf, BLUE);
+                    lcd_show_string(70, LCD_Y_STATUS_LINE2, 150, 16, 16, (char *)display_buf, BLUE);
 
                     if(fall_detected)
                     {
-                        lcd_show_string(70, 80, 150, 16, 16, "FALL!!    ", RED);
+                        lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "FALL!!    ", RED);
                         if(!beep_test_mode)
                         {
                             beep_on();
@@ -394,10 +457,10 @@ int main(void)
             }
         }
 
-        /* 鎽斿€掓姤璀︽帶鍒?- 鎽斿€掓娴嬩紭鍏堢骇鏈€楂?*/
+        /* 告警控制，摔倒告警优先级最高 */
         if(!beep_test_mode && fall_detector.state == FALL_STATE_DETECTED)
         {
-            lcd_show_string(70, 80, 150, 16, 16, "FALL!!    ", RED);
+            lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "FALL!!    ", RED);
             if(alarm_count < 60)
             {
                 if(alarm_count % 10 == 0)
@@ -413,12 +476,12 @@ int main(void)
         }
         else if(!beep_test_mode && pm25_alarm)
         {
-            lcd_show_string(70, 80, 150, 16, 16, "PM2.5!!   ", RED);
+            lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "PM2.5!!   ", RED);
             beep_on();
         }
         else if(!beep_test_mode)
         {
-            lcd_show_string(70, 80, 150, 16, 16, "Normal    ", BLUE);
+            lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "Normal    ", BLUE);
             beep_off();
         }
 

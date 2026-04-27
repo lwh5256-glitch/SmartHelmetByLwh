@@ -1,10 +1,10 @@
 ﻿/**
  ****************************************************************************************************
  * @file        key.c
- * @author      闄嗘枃璞?
+ * @author      陆文豪
  * @version     V1.0
  * @date        2026-03-23
- * @brief       鎸夐敭椹卞姩浠ｇ爜
+ * @brief       按键驱动代码
  ****************************************************************************************************
  */
 
@@ -12,31 +12,31 @@
 #include "delay.h"
 
 /**
- * @brief       鍒濆鍖栨寜閿?
- * @param       鏃?
- * @retval      鏃?
+ * @brief       初始化按键 GPIO
+ * @param       无
+ * @retval      无
  */
 void key_init(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-    /* 浣胯兘鏃堕挓 */
+    /* 使能按键所在 GPIO 端口时钟 */
     KEY_UP_GPIO_CLK_ENABLE();
     KEY0_GPIO_CLK_ENABLE();
     KEY1_GPIO_CLK_ENABLE();
     KEY2_GPIO_CLK_ENABLE();
 
-    /* 閰嶇疆KEY_UP (PA0) - 鎸変笅涓洪珮鐢靛钩 */
+    /* 配置 KEY_UP (PA0)，按下时为高电平 */
     GPIO_InitStruct.Pin = KEY_UP_GPIO_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  /* 涓嬫媺 */
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  /* 下拉输入 */
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(KEY_UP_GPIO_PORT, &GPIO_InitStruct);
 
-    /* 閰嶇疆KEY0/KEY1/KEY2 (PE4/PE3/PE2) - 鎸変笅涓轰綆鐢靛钩 */
+    /* 配置 KEY0/KEY1/KEY2 (PE4/PE3/PE2)，按下时为低电平 */
     GPIO_InitStruct.Pin = KEY0_GPIO_PIN;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;  /* 涓婃媺 */
+    GPIO_InitStruct.Pull = GPIO_PULLUP;  /* 上拉输入 */
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(KEY0_GPIO_PORT, &GPIO_InitStruct);
 
@@ -48,9 +48,9 @@ void key_init(void)
 }
 
 /**
- * @brief       鎸夐敭鎵弿
- * @param       mode: 0-涓嶆敮鎸佽繛缁寜, 1-鏀寔杩炵画鎸?
- * @retval      鎸夐敭鍊? KEY_NONE, KEY_UP_PRESS, KEY0_PRESS, KEY1_PRESS, KEY2_PRESS
+ * @brief       按键扫描
+ * @param       mode: 0-不支持连按, 1-允许重新同步当前按键状态
+ * @retval      按键值: KEY_NONE, KEY_UP_PRESS, KEY0_PRESS, KEY1_PRESS, KEY2_PRESS
  */
 uint8_t key_scan(uint8_t mode)
 {

@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Drivers/SYSTEM/delay;../Drivers/SYSTEM/sys;../MyCode;..\Drivers\HARDWARE\LCD;..\Drivers\HARDWARE\BEEP;..\Drivers\HARDWARE\KEY;..\Drivers\HARDWARE\FALL_DETECT;..\Drivers\HARDWARE\FILTER;..\Drivers\HARDWARE\PMS7003;..\Drivers\HARDWARE\ESP8266</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Drivers/SYSTEM/delay;../Drivers/SYSTEM/sys;../MyCode;..\Drivers\HARDWARE\LCD;..\Drivers\HARDWARE\BEEP;..\Drivers\HARDWARE\KEY;..\Drivers\HARDWARE\FALL_DETECT;..\Drivers\HARDWARE\FILTER;..\Drivers\HARDWARE\PMS7003;..\Drivers\HARDWARE\ESP8266;..\Drivers\HARDWARE\DS18B20</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -1612,6 +1612,16 @@
               <FileName>pms7003.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\HARDWARE\PMS7003\pms7003.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Drivers\HARDWARE\DS18B20</GroupName>
+          <Files>
+            <File>
+              <FileName>ds18b20.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drivers\HARDWARE\DS18B20\ds18b20.c</FilePath>
             </File>
           </Files>
         </Group>
