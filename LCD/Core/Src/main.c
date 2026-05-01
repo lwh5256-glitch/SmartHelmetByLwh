@@ -63,19 +63,16 @@ uint8_t atkcld_connected = 0;  /* 原子云连接状态 */
 
 #define LCD_Y_TITLE                    5
 #define LCD_Y_INIT                     35
-#define LCD_Y_STATUS_TITLE             60
-#define LCD_Y_STATUS_LINE1             80
-#define LCD_Y_STATUS_LINE2             100
-#define LCD_Y_AIR_TITLE                125
-#define LCD_Y_AIR_PM                   145
-#define LCD_Y_TEMP_BODY                165
-#define LCD_Y_TEMP_ENV                 185
-#define LCD_Y_MOTION_TITLE             205
-#define LCD_Y_MOTION_X                 225
-#define LCD_Y_MOTION_Y                 245
-#define LCD_Y_MOTION_Z                 265
-#define LCD_Y_NET                      295
-#define LCD_Y_LIGHT                    315
+#define LCD_Y_STATUS_LINE1             58
+#define LCD_Y_STATUS_LINE2             78
+#define LCD_Y_AIR_PM                   104
+#define LCD_Y_TEMP_BODY                124
+#define LCD_Y_TEMP_ENV                 144
+#define LCD_Y_MOTION_X                 176
+#define LCD_Y_MOTION_Y                 196
+#define LCD_Y_MOTION_Z                 216
+#define LCD_Y_NET                      258
+#define LCD_Y_LIGHT                    284
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -153,7 +150,8 @@ int main(void)
     uint8_t alarm_count = 0;
     uint8_t key_val = 0;
     PMS7003_Data_t *pms_data;
-    uint8_t pm25_alarm = 0;
+    uint8_t dust_alarm = 0;
+    uint16_t dust_conc = 0;
     uint8_t light_is_dark = 0;
     uint8_t fill_light_auto = 1;
     uint8_t fill_light_on = 0;
@@ -198,20 +196,17 @@ int main(void)
     /* 初始化摔倒检测器 */
     fall_detect_init(&fall_detector);
 
-    /* 分组 1: 系统状态 */
-    lcd_show_string(10, LCD_Y_STATUS_TITLE, 220, 16, 16, "== Status ==", BLUE);
+    /* 系统状态 */
     lcd_show_string(10, LCD_Y_STATUS_LINE1, 100, 16, 16, "System:", BLACK);
     lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "Normal    ", BLUE);
     lcd_show_string(10, LCD_Y_STATUS_LINE2, 100, 16, 16, "State:", BLACK);
 
-    /* 分组 2: 空气质量和温度 */
-    lcd_show_string(10, LCD_Y_AIR_TITLE, 220, 16, 16, "== Air Quality ==", BLUE);
-    lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, "PM2.5:            ", BLACK);
+    /* 粉尘估算值和温度 */
+    lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, "Dust:             ", BLACK);
     lcd_show_string(10, LCD_Y_TEMP_BODY, 220, 16, 16, "BodyT:--.-C       ", BLACK);
     lcd_show_string(10, LCD_Y_TEMP_ENV, 220, 16, 16, "EnvT:--.-C        ", BLACK);
 
-    /* 分组 3: 加速度 */
-    lcd_show_string(10, LCD_Y_MOTION_TITLE, 220, 16, 16, "== Acceleration ==", BLUE);
+    /* 加速度 */
     lcd_show_string(10, LCD_Y_MOTION_X, 100, 16, 16, "Accel X:", BLACK);
     lcd_show_string(10, LCD_Y_MOTION_Y, 100, 16, 16, "Accel Y:", BLACK);
     lcd_show_string(10, LCD_Y_MOTION_Z, 100, 16, 16, "Accel Z:", BLACK);
@@ -403,18 +398,19 @@ int main(void)
             pms_data = PMS7003_GetData();
             if(pms_data->valid)
             {
-                /* 显示 PM2.5，并在超阈值时给出告警提示 */
-                if(pms_data->pm2_5_cf1 > 1000)
+                /* 以 PM2.5 数据估算粉尘浓度，并在超阈值时给出告警提示 */
+                dust_conc = pms_data->pm2_5_cf1;
+                if(dust_conc > 1000)
                 {
-                    sprintf((char *)display_buf,"PM2.5:%4d ALARM!", pms_data->pm2_5_cf1);
+                    sprintf((char *)display_buf,"Dust:%4d ALARM! ", dust_conc);
                     lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, (char *)display_buf, RED);
-                    pm25_alarm = 1;
+                    dust_alarm = 1;
                 }
                 else
                 {
-                    sprintf((char *)display_buf,"PM2.5:%4d ug/m3 ", pms_data->pm2_5_cf1);
+                    sprintf((char *)display_buf,"Dust:%4d ug/m3  ", dust_conc);
                     lcd_show_string(10, LCD_Y_AIR_PM, 220, 16, 16, (char *)display_buf, BLACK);
-                    pm25_alarm = 0;
+                    dust_alarm = 0;
                 }
 
                 /* 定时向原子云上报 PM2.5 数据，每 5 秒一次 */
@@ -474,9 +470,9 @@ int main(void)
                 beep_off();
             }
         }
-        else if(!beep_test_mode && pm25_alarm)
+        else if(!beep_test_mode && dust_alarm)
         {
-            lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "PM2.5!!   ", RED);
+            lcd_show_string(70, LCD_Y_STATUS_LINE1, 150, 16, 16, "DUST!!    ", RED);
             beep_on();
         }
         else if(!beep_test_mode)
